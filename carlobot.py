@@ -1,6 +1,7 @@
 import logging
 
-from telegram import ForceReply, Update
+import telegram
+from telegram import BotCommand, ForceReply, MenuButtonCommands, Update
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -43,6 +44,15 @@ async def transaction_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     )
 
 
+async def post_init(application: Application) -> None:
+    await application.bot.set_my_commands(
+        [
+            BotCommand("debug", "Toggle debug mode"),
+        ]
+    )
+    await application.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+
+
 def main() -> None:
     persistence = PicklePersistence(
         filepath="persistence",
@@ -50,10 +60,12 @@ def main() -> None:
             chat_data=True, bot_data=False, user_data=True, callback_data=False
         ),
     )
+
     application = (
         Application.builder()
         .token(environment.TG_BOT_TOKEN)
-        .persistence(persistence=persistence)
+        .persistence(persistence)
+        .post_init(post_init)
         .build()
     )
 
