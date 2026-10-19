@@ -3,9 +3,9 @@ from pathlib import Path
 
 from google import genai
 
-import environment
-from sheet_reader import SheetReader
-from transaction_type import TransactionType
+from carlobot import config
+from carlobot.domain.types import TransactionType
+from carlobot.sheets.reader import SheetReader
 
 
 class CategoriesBuilder:
@@ -49,10 +49,10 @@ class CategoriesBuilder:
         return enriched
 
     def write_categories(self):
-        categories_dir = Path(__file__).resolve().parent
+        config.CATEGORIES_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
         for type in [TransactionType.EXPENSE, TransactionType.INCOME]:
-            json_path = categories_dir / f"{type.name.lower()[:3]}_cat.json"
+            json_path = config.CATEGORIES_CACHE_DIR / f"{type.name.lower()[:3]}_cat.json"
 
             try:
                 with open(json_path, "xt") as categories_file:
@@ -64,8 +64,7 @@ class CategoriesBuilder:
                 print(f"File {json_path.name} exists already, not generating anything")
 
     def get_categories(self, type: TransactionType) -> dict:
-        categories_dir = Path(__file__).resolve().parent
-        json_path = categories_dir / f"{type.name.lower()[:3]}_cat.json"
+        json_path = config.CATEGORIES_CACHE_DIR / f"{type.name.lower()[:3]}_cat.json"
 
         with open(json_path, "rt") as categories_file:
             return json.load(categories_file)
@@ -79,4 +78,5 @@ if __name__ == "__main__":
     inc_cat = builder.get_categories(TransactionType.INCOME)
 
     print(exp_cat)
+    print("\n\n")
     print(inc_cat)

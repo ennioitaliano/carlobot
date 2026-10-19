@@ -1,12 +1,9 @@
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-import environment
-from sheet_authenticator import SheetAuthenticator
-from transaction_type import TransactionType
+from carlobot import config
+from carlobot.domain.types import TransactionType
+from carlobot.sheets.auth import SheetAuthenticator
 
 
 class SheetReader:
@@ -14,6 +11,11 @@ class SheetReader:
     credentials = authenticator.authenticate()
 
     def get_categories_sheet(self, type: TransactionType):
+        target_range = (
+            config.EXPENSE_CATEGORIES_RANGE
+            if type == TransactionType.EXPENSE
+            else config.INCOME_CATEGORIES_RANGE
+        )
         try:
             service = build("sheets", "v4", credentials=self.credentials)
             sheet = service.spreadsheets()
@@ -21,10 +23,8 @@ class SheetReader:
             result = (
                 sheet.values()
                 .get(
-                    spreadsheetId=environment.BUDGETING_2026_SPREADSHEET_ID,
-                    range=environment.EXPENSE_CATEGORIES_RANGE
-                    if type == TransactionType.EXPENSE
-                    else environment.INCOME_CATEGORIES_RANGE,
+                    spreadsheetId=config.BUDGETING_2026_SPREADSHEET_ID,
+                    range=target_range,
                     majorDimension="COLUMNS",
                 )
                 .execute()
@@ -32,7 +32,7 @@ class SheetReader:
             values = result.get("values", [])
 
             if not values:
-                raise LookupError(f"No values found for categories in range {range}")
+                raise LookupError(f"No values found for categories in range {target_range}")
 
             categories = {}
             for col in values:
@@ -45,14 +45,3 @@ class SheetReader:
         except HttpError as err:
             print(err)
             return {}
-
-
-if __name__ == "__main__":
-    reader = SheetReader()
-
-    expense_categories = reader.get_categories_sheet(TransactionType.EXPENSE)
-    income_categories = reader.get_categories_sheet(TransactionType.INCOME)
-
-    print(expense_categories)
-    print("\n\n")
-    print(income_categories)

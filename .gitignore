@@ -222,3 +222,4 @@ pyrightconfig.json
 persistence
 .vibe-wise
 *.json
+data/

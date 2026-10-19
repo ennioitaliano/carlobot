@@ -4,7 +4,7 @@ from typing import override
 
 from typesafe_sdk import Answer
 
-from transaction_type import TransactionType
+from carlobot.domain.types import TransactionType
 
 
 class Transaction:

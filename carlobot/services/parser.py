@@ -3,10 +3,9 @@ from datetime import datetime
 
 from typesafe_sdk import Choice, Noul, Score, TypeSafeClient
 
-import environment
-from categories.categories_builder import CategoriesBuilder
-from transaction import Transaction
-from transaction_type import TransactionType
+from carlobot import config
+from carlobot.categories import CategoriesBuilder
+from carlobot.domain import Transaction, TransactionType
 
 
 class MessageParser:
