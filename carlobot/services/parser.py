@@ -96,12 +96,23 @@ class MessageParser:
             output_date,
         )
 
+    def _description(self, message: str) -> str:
+        interaction = self.gemini_client.interactions.create(
+            model="gemini-3.1-flash-lite",
+            system_instruction="Only output the requested description, in Italian, maximum 3 words, no articles/prepositions, no formatting",
+            input=f"""
+                    The following message contains informations about a transaction: '{message}'
+                    What is the object of the transaction?
+                """,
+        )
+        return interaction.output_text.lower()
+
     def _amount(self, message: str) -> float:
         interaction = self.gemini_client.interactions.create(
             model="gemini-3.1-flash-lite",
             system_instruction="Only output the requested float amount, no formatting",
             input=f"""
-                    The following message contains a transaction: '{message}'
+                    The following message contains informations about a transaction: '{message}'
                     What is the amount of money of the transaction?
                 """,
         )
@@ -153,6 +164,7 @@ class MessageParser:
         type_answer, transaction_type = self._transaction_type(message)
         date_conf, date = self._date(message)
         amount = self._amount(message)
+        description = self._description(message)
         category_answer = self._category(message, transaction_type)
         subcategory_answer = self._subcategory(
             message, transaction_type, category_answer.choice
@@ -162,7 +174,7 @@ class MessageParser:
             transaction_type=(type_answer, transaction_type),
             date=(date_conf, date),
             amount=amount,
-            description="",
+            description=description,
             category=category_answer,
             subcategory=subcategory_answer,
         )

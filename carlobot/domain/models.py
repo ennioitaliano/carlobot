@@ -31,6 +31,8 @@ class Transaction:
 
         *Amount:* {self.amount}
 
+        *Description:* {self.description}
+
         *Category*
             - *Choice*: {self.category.choice}
             - *Confidence*: {self.category.confidence}
@@ -46,6 +48,7 @@ class Transaction:
             *Type*: {self.transaction_type[1].name.capitalize()}
             *Date:* {self.date[1].strftime("%F")}
             *Amount:* {self.amount}€
+            *Description:* {self.description.capitalize()}
             *Category*: {self.category.choice.capitalize()}
             *Sub-category*: {self.subcategory.choice}
         """)
