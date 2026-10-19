@@ -17,10 +17,6 @@ async def parse_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     is_debug = context.user_data.get("debug", False)
 
     if not parser:
-        msg = await update.message.reply_text(
-            "Category descriptions generation in progress..."
-        )
-        context.bot_data["last_pending_msg"] = msg
         return
 
     try:

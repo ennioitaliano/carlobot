@@ -28,7 +28,7 @@ class MessageParser:
             else builder.get_categories(TransactionType.INCOME)
         )
 
-    def __transaction_type(self, message: str):
+    def _transaction_type(self, message: str):
         response = self.client.system_one(
             state=message,
             questions={
@@ -47,7 +47,7 @@ class MessageParser:
 
         return (answer, transaction_type)
 
-    def __category(self, message: str, transaction_type: TransactionType = TransactionType.EXPENSE):
+    def _category(self, message: str, transaction_type: TransactionType = TransactionType.EXPENSE):
         data = self.exp_data if transaction_type == TransactionType.EXPENSE else self.inc_data
         cat_criteria = {cat: info.get("description", "") for cat, info in data.items()}
 
@@ -62,7 +62,7 @@ class MessageParser:
         )
         return response.answers["category"]
 
-    def __subcategory(self, message: str, transaction_type: TransactionType, category: str):
+    def _subcategory(self, message: str, transaction_type: TransactionType, category: str):
         data = self.exp_data if transaction_type == TransactionType.EXPENSE else self.inc_data
         sub_criteria = data.get(category, {}).get("subcategories", {})
 
@@ -78,9 +78,9 @@ class MessageParser:
         return response.answers["subcategory"]
 
     def parse(self, message: str) -> Transaction:
-        answer, transaction_type = self.__transaction_type(message)
-        category_answer = self.__category(message, transaction_type)
-        subcategory_answer = self.__subcategory(message, transaction_type, category_answer.choice)
+        answer, transaction_type = self._transaction_type(message)
+        category_answer = self._category(message, transaction_type)
+        subcategory_answer = self._subcategory(message, transaction_type, category_answer.choice)
 
         return Transaction(
             transaction_type=(answer, transaction_type),

@@ -31,13 +31,6 @@ async def _build_categories(app: Application) -> None:
 
     app.bot_data["parser"] = MessageParser(exp_data, inc_data)
 
-    last_msg = app.bot_data.get("last_pending_msg")
-    if last_msg:
-        await last_msg.edit_text(
-            "Category descriptions generation completed. Please resend your transaction."
-        )
-        app.bot_data["last_pending_msg"] = None
-
 
 async def post_init(application: Application) -> None:
 

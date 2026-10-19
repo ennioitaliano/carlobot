@@ -44,7 +44,9 @@ class CategoriesBuilder:
         self, cat_name: str, subcats: list[str], transaction_type: TransactionType
     ) -> tuple[str, dict]:
         cat_task = self._generate_cat_descr(cat_name, subcats, transaction_type)
-        sub_tasks = [self._generate_sub_descr(sub, cat_name, transaction_type) for sub in subcats]
+        sub_tasks = [
+            self._generate_sub_descr(sub, cat_name, transaction_type) for sub in subcats
+        ]
 
         cat_descr, *sub_descrs = await asyncio.gather(cat_task, *sub_tasks)
         sub_dict = dict(zip(subcats, sub_descrs))
@@ -65,16 +67,24 @@ class CategoriesBuilder:
         config.CATEGORIES_CACHE_DIR.mkdir(parents=True, exist_ok=True)
         for transaction_type in [TransactionType.EXPENSE, TransactionType.INCOME]:
             json_path = (
-                config.CATEGORIES_CACHE_DIR / f"{transaction_type.name.lower()[:3]}_cat.json"
+                config.CATEGORIES_CACHE_DIR
+                / f"{transaction_type.name.lower()[:3]}_cat.json"
             )
             reader = SheetReader()
-            categories_raw = reader.get_categories_sheet(transaction_type)
-            enriched_categories = await self._enrich_categories(categories_raw, transaction_type)
+            categories_raw = await asyncio.to_thread(
+                reader.get_categories_sheet, transaction_type
+            )
+            enriched_categories = await self._enrich_categories(
+                categories_raw, transaction_type
+            )
             with open(json_path, "w") as f:
                 json.dump(enriched_categories, f, indent=2)
 
     def get_categories(self, transaction_type: TransactionType) -> dict:
-        json_path = config.CATEGORIES_CACHE_DIR / f"{transaction_type.name.lower()[:3]}_cat.json"
+        json_path = (
+            config.CATEGORIES_CACHE_DIR
+            / f"{transaction_type.name.lower()[:3]}_cat.json"
+        )
 
         with open(json_path, "rt") as categories_file:
             return json.load(categories_file)
