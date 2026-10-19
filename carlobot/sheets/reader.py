@@ -11,10 +11,10 @@ class SheetReader:
         self.authenticator = SheetAuthenticator()
         self.credentials = self.authenticator.authenticate()
 
-    def get_categories_sheet(self, type: TransactionType):
+    def get_categories_sheet(self, transaction_type: TransactionType):
         target_range = (
             config.EXPENSE_CATEGORIES_RANGE
-            if type == TransactionType.EXPENSE
+            if transaction_type == TransactionType.EXPENSE
             else config.INCOME_CATEGORIES_RANGE
         )
 

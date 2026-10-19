@@ -40,37 +40,37 @@ class MessageParser:
         )
 
         answer = response.answers["type"]
-        type = TransactionType[answer.choice]
+        transaction_type = TransactionType[answer.choice]
 
-        if type == TransactionType.NONE:
+        if transaction_type == TransactionType.NONE:
             raise ValueError("Not a transaction")
 
-        return (answer, type)
+        return (answer, transaction_type)
 
-    def __category(self, message: str, type: TransactionType = TransactionType.EXPENSE):
-        data = self.exp_data if type == TransactionType.EXPENSE else self.inc_data
+    def __category(self, message: str, transaction_type: TransactionType = TransactionType.EXPENSE):
+        data = self.exp_data if transaction_type == TransactionType.EXPENSE else self.inc_data
         cat_criteria = {cat: info.get("description", "") for cat, info in data.items()}
 
         response = self.client.system_one(
             state=message,
             questions={
                 "category": Choice(
-                    instructions=f"To what category does this {type.name.lower()} transaction belong?",
+                    instructions=f"To what category does this {transaction_type.name.lower()} transaction belong?",
                     criteria=cat_criteria,
                 ),
             },
         )
         return response.answers["category"]
 
-    def __subcategory(self, message: str, type: TransactionType, category: str):
-        data = self.exp_data if type == TransactionType.EXPENSE else self.inc_data
+    def __subcategory(self, message: str, transaction_type: TransactionType, category: str):
+        data = self.exp_data if transaction_type == TransactionType.EXPENSE else self.inc_data
         sub_criteria = data.get(category, {}).get("subcategories", {})
 
         response = self.client.system_one(
             state=message,
             questions={
                 "subcategory": Choice(
-                    instructions=f"To what subcategory of {category} does this {type.name.lower()} transaction belong?",
+                    instructions=f"To what subcategory of {category} does this {transaction_type.name.lower()} transaction belong?",
                     criteria=sub_criteria,
                 ),
             },
@@ -78,12 +78,12 @@ class MessageParser:
         return response.answers["subcategory"]
 
     def parse(self, message: str) -> Transaction:
-        answer, type = self.__transaction_type(message)
-        category_answer = self.__category(message, type)
-        subcategory_answer = self.__subcategory(message, type, category_answer.choice)
+        answer, transaction_type = self.__transaction_type(message)
+        category_answer = self.__category(message, transaction_type)
+        subcategory_answer = self.__subcategory(message, transaction_type, category_answer.choice)
 
         return Transaction(
-            type=(answer, type),
+            transaction_type=(answer, transaction_type),
             date=datetime.now(),
             amount=0.0,
             description="",
