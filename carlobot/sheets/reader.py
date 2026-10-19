@@ -7,8 +7,9 @@ from carlobot.sheets.auth import SheetAuthenticator
 
 
 class SheetReader:
-    authenticator = SheetAuthenticator()
-    credentials = authenticator.authenticate()
+    def __init__(self) -> None:
+        self.authenticator = SheetAuthenticator()
+        self.credentials = self.authenticator.authenticate()
 
     def get_categories_sheet(self, type: TransactionType):
         target_range = (
@@ -16,32 +17,29 @@ class SheetReader:
             if type == TransactionType.EXPENSE
             else config.INCOME_CATEGORIES_RANGE
         )
-        try:
-            service = build("sheets", "v4", credentials=self.credentials)
-            sheet = service.spreadsheets()
 
-            result = (
-                sheet.values()
-                .get(
-                    spreadsheetId=config.BUDGETING_2026_SPREADSHEET_ID,
-                    range=target_range,
-                    majorDimension="COLUMNS",
-                )
-                .execute()
+        service = build("sheets", "v4", credentials=self.credentials)
+        sheet = service.spreadsheets()
+
+        result = (
+            sheet.values()
+            .get(
+                spreadsheetId=config.BUDGETING_2026_SPREADSHEET_ID,
+                range=target_range,
+                majorDimension="COLUMNS",
             )
-            values = result.get("values", [])
+            .execute()
+        )
+        values = result.get("values", [])
 
-            if not values:
-                raise LookupError(f"No values found for categories in range {target_range}")
+        if not values:
+            raise LookupError(f"No values found for categories in range {target_range}")
 
-            categories = {}
-            for col in values:
-                if col:
-                    category_name = col[0]
-                    subcategories = [s for s in col[1:] if s]
-                    categories[category_name] = subcategories
+        categories = {}
+        for col in values:
+            if col:
+                category_name = col[0]
+                subcategories = [s for s in col[1:] if s]
+                categories[category_name] = subcategories
 
-            return categories
-        except HttpError as err:
-            print(err)
-            return {}
+        return categories

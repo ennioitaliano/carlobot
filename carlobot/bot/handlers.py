@@ -1,8 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from carlobot.services import MessageParser
-
 
 async def debug_mode(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     is_debug = not context.user_data.get("debug", False)
@@ -12,10 +10,17 @@ async def debug_mode(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
 
 async def parse_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    parser = MessageParser()
+    if not update.message or not update.message.text:
+        return
+
+    parser = context.bot_data["parser"]
     is_debug = context.user_data.get("debug", False)
 
-    if not update.message or not update.message.text:
+    if not parser:
+        msg = await update.message.reply_text(
+            "Category descriptions generation in progress..."
+        )
+        context.bot_data["last_pending_msg"] = msg
         return
 
     try:

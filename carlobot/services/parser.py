@@ -4,15 +4,29 @@ from datetime import datetime
 from typesafe_sdk import Choice, Noul, Score, TypeSafeClient
 
 from carlobot import config
-from carlobot.categories import CategoriesBuilder
+from carlobot.categories.builder import CategoriesBuilder
 from carlobot.domain import Transaction, TransactionType
 
 
 class MessageParser:
-    client = TypeSafeClient()
-    _builder = CategoriesBuilder()
-    exp_data = _builder.get_categories(TransactionType.EXPENSE)
-    inc_data = _builder.get_categories(TransactionType.INCOME)
+    def __init__(
+        self, exp_data: dict | None = None, inc_data: dict | None = None
+    ) -> None:
+        self.client = TypeSafeClient()
+
+        if exp_data is None or inc_data is None:
+            builder = CategoriesBuilder()
+
+        self.exp_data = (
+            exp_data
+            if exp_data is not None
+            else builder.get_categories(TransactionType.EXPENSE)
+        )
+        self.inc_data = (
+            inc_data
+            if inc_data is not None
+            else builder.get_categories(TransactionType.INCOME)
+        )
 
     def __transaction_type(self, message: str):
         response = self.client.system_one(

@@ -1,3 +1,4 @@
+import asyncio
 import json
 from pathlib import Path
 
@@ -9,22 +10,27 @@ from carlobot.sheets.reader import SheetReader
 
 
 class CategoriesBuilder:
-    _gemini_client = genai.Client()
+    def __init__(self) -> None:
+        self._gemini_client = genai.Client()
 
-    def __generate_cat_descr(self, cat_name: str, subcats: list[str], type: TransactionType) -> str:
-        interaction = self._gemini_client.interactions.create(
+    async def _generate_cat_descr(
+        self, cat_name: str, subcats: list[str], type: TransactionType
+    ) -> str:
+        interaction = await self._gemini_client.aio.interactions.create(
             model="gemini-3.1-flash-lite",
             system_instruction="Only output the requested description, no formatting, max 140 chars",
             input=f"""
                     I have a spreadsheet to manage my finances, tracking income and expenses.
                     Write a description for the '{cat_name}' {type.name.lower()} category, serving exclusively as a criteria to understand whether a certain transaction belongs to it.
-                    Keep into consideration also its subcategories: {', '.join(subcats)}
+                    Keep into consideration also its subcategories: {", ".join(subcats)}
                 """,
         )
         return interaction.output_text
 
-    def __generate_sub_descr(self, sub_name: str, cat_name: str, type: TransactionType) -> str:
-        interaction = self._gemini_client.interactions.create(
+    async def _generate_sub_descr(
+        self, sub_name: str, cat_name: str, type: TransactionType
+    ) -> str:
+        interaction = await self._gemini_client.aio.interactions.create(
             model="gemini-3.1-flash-lite",
             system_instruction="Only output the requested description, no formatting, max 140 chars",
             input=f"""
@@ -34,34 +40,38 @@ class CategoriesBuilder:
         )
         return interaction.output_text
 
-    def __enrich_categories(self, categories_raw: dict[str, list[str]], type: TransactionType) -> dict:
-        enriched = {}
-        for cat_name, subcats in categories_raw.items():
-            cat_descr = self.__generate_cat_descr(cat_name, subcats, type)
-            sub_dict = {}
-            for sub_name in subcats:
-                sub_dict[sub_name] = self.__generate_sub_descr(sub_name, cat_name, type)
+    async def _enrich_category(
+        self, cat_name: str, subcats: list[str], type: TransactionType
+    ) -> tuple[str, dict]:
+        cat_task = self._generate_cat_descr(cat_name, subcats, type)
+        sub_tasks = [self._generate_sub_descr(sub, cat_name, type) for sub in subcats]
 
-            enriched[cat_name] = {
-                "description": cat_descr,
-                "subcategories": sub_dict,
-            }
-        return enriched
+        cat_descr, *sub_descrs = await asyncio.gather(cat_task, *sub_tasks)
+        sub_dict = dict(zip(subcats, sub_descrs))
 
-    def write_categories(self):
+        return cat_name, {"description": cat_descr, "subcategories": sub_dict}
+
+    async def _enrich_categories(
+        self, categories_raw: dict[str, list[str]], type: TransactionType
+    ) -> dict:
+        tasks = [
+            self._enrich_category(cat_name, subcats, type)
+            for cat_name, subcats in categories_raw.items()
+        ]
+        results = await asyncio.gather(*tasks)
+        return dict(results)
+
+    async def write_categories(self):
         config.CATEGORIES_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
         for type in [TransactionType.EXPENSE, TransactionType.INCOME]:
-            json_path = config.CATEGORIES_CACHE_DIR / f"{type.name.lower()[:3]}_cat.json"
-
-            try:
-                with open(json_path, "xt") as categories_file:
-                    reader = SheetReader()
-                    categories_raw = reader.get_categories_sheet(type)
-                    enriched_categories = self.__enrich_categories(categories_raw, type)
-                    json.dump(enriched_categories, categories_file, indent=2)
-            except FileExistsError:
-                print(f"File {json_path.name} exists already, not generating anything")
+            json_path = (
+                config.CATEGORIES_CACHE_DIR / f"{type.name.lower()[:3]}_cat.json"
+            )
+            reader = SheetReader()
+            categories_raw = reader.get_categories_sheet(type)
+            enriched_categories = await self._enrich_categories(categories_raw, type)
+            with open(json_path, "w") as f:
+                json.dump(enriched_categories, f, indent=2)
 
     def get_categories(self, type: TransactionType) -> dict:
         json_path = config.CATEGORIES_CACHE_DIR / f"{type.name.lower()[:3]}_cat.json"
@@ -73,7 +83,7 @@ class CategoriesBuilder:
 if __name__ == "__main__":
     builder = CategoriesBuilder()
 
-    builder.write_categories()
+    asyncio.run(builder.write_categories())
     exp_cat = builder.get_categories(TransactionType.EXPENSE)
     inc_cat = builder.get_categories(TransactionType.INCOME)
 
