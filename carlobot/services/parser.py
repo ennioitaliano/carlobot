@@ -1,8 +1,9 @@
 import sys
-from datetime import datetime
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from google import genai
-from typesafe_sdk import Choice, Noul, Score, TypeSafeClient
+from typesafe_sdk import Choice, Noul, NoulCriteria, Score, TypeSafeClient
 
 from carlobot import config
 from carlobot.categories.builder import CategoriesBuilder
@@ -48,6 +49,52 @@ class MessageParser:
             raise ValueError("Not a transaction")
 
         return (answer, transaction_type)
+
+    def _date_confidence(self, message: str) -> float:
+        response = self.ts_client.system_one(
+            state=message,
+            questions={
+                "type": Noul(
+                    instructions="Does this message contains a date or timing information?",
+                    criteria=NoulCriteria(
+                        true="Mentions an absolute or relative date, like '2026-10-19', 'on Monday', 'two days ago', 'yesterday', etc.",
+                        false="No sign of any timing indication",
+                    ),
+                ),
+            },
+        )
+
+        return response.answers["type"].noul
+
+    def _extract_date(self, message: str, current_date: date) -> date:
+        interaction = self.gemini_client.interactions.create(
+            model="gemini-3.1-flash-lite",
+            system_instruction="Only output the requested date in YYYY-MM-DD, no formatting",
+            input=f"""
+                    The following message contains a date/timing info: '{message}'
+                    What date can be extracted? Today is {current_date.strftime("%A, %F")}
+                """,
+        )
+
+        return datetime.fromisoformat(interaction.output_text.strip()).date()
+
+    def _date(self, message: str) -> tuple[float, date]:
+        confidence = self._date_confidence(message)
+        local_timezone = ZoneInfo("Europe/Rome")
+        current_date = datetime.now(tz=local_timezone).date()
+
+        if confidence < 0.5:
+            return (answer.noul, current_date)
+
+        output_date = self._extract_date(message, current_date)
+
+        if output_date.month != current_date.month:
+            raise ValueError("The bot can only log current-month transactions.")
+
+        return (
+            confidence,
+            output_date,
+        )
 
     def _amount(self, message: str) -> float:
         interaction = self.gemini_client.interactions.create(
@@ -103,7 +150,8 @@ class MessageParser:
         return response.answers["subcategory"]
 
     def parse(self, message: str) -> Transaction:
-        answer, transaction_type = self._transaction_type(message)
+        type_answer, transaction_type = self._transaction_type(message)
+        date_conf, date = self._date(message)
         amount = self._amount(message)
         category_answer = self._category(message, transaction_type)
         subcategory_answer = self._subcategory(
@@ -111,8 +159,8 @@ class MessageParser:
         )
 
         return Transaction(
-            transaction_type=(answer, transaction_type),
-            date=datetime.now(),
+            transaction_type=(type_answer, transaction_type),
+            date=(date_conf, date),
             amount=amount,
             description="",
             category=category_answer,

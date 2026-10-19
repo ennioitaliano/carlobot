@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date
 from textwrap import dedent
 from typing import override
 
@@ -11,7 +11,7 @@ from carlobot.domain.types import TransactionType
 @dataclass
 class Transaction:
     transaction_type: tuple[Answer, TransactionType]
-    date: datetime
+    date: tuple[float, date]
     amount: float
     description: str
     category: Answer
@@ -24,6 +24,10 @@ class Transaction:
             - *Choice*: {self.transaction_type[0].choice}
             - *Confidence*: {self.transaction_type[0].confidence}
             - *Enum*: {self.transaction_type[1]}
+
+        *Date*
+            - *Confidence:* {self.date[0]}
+            - *Date:* {self.date[1].strftime("%F")}
 
         *Amount:* {self.amount}
 
@@ -40,6 +44,7 @@ class Transaction:
     def __str__(self) -> str:
         return dedent(f"""
             *Type*: {self.transaction_type[1].name.capitalize()}
+            *Date:* {self.date[1].strftime("%F")}
             *Amount:* {self.amount}€
             *Category*: {self.category.choice.capitalize()}
             *Sub-category*: {self.subcategory.choice}
