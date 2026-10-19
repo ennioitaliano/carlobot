@@ -1,6 +1,7 @@
 import sys
 from datetime import datetime
 
+from google import genai
 from typesafe_sdk import Choice, Noul, Score, TypeSafeClient
 
 from carlobot import config
@@ -12,7 +13,8 @@ class MessageParser:
     def __init__(
         self, exp_data: dict | None = None, inc_data: dict | None = None
     ) -> None:
-        self.client = TypeSafeClient()
+        self.ts_client = TypeSafeClient()
+        self.gemini_client = genai.Client()
 
         if exp_data is None or inc_data is None:
             builder = CategoriesBuilder()
@@ -29,7 +31,7 @@ class MessageParser:
         )
 
     def _transaction_type(self, message: str):
-        response = self.client.system_one(
+        response = self.ts_client.system_one(
             state=message,
             questions={
                 "type": Choice(
@@ -47,11 +49,28 @@ class MessageParser:
 
         return (answer, transaction_type)
 
-    def _category(self, message: str, transaction_type: TransactionType = TransactionType.EXPENSE):
-        data = self.exp_data if transaction_type == TransactionType.EXPENSE else self.inc_data
+    def _amount(self, message: str) -> float:
+        interaction = self.gemini_client.interactions.create(
+            model="gemini-3.1-flash-lite",
+            system_instruction="Only output the requested float amount, no formatting",
+            input=f"""
+                    The following message contains a transaction: '{message}'
+                    What is the amount of money of the transaction?
+                """,
+        )
+        return float(interaction.output_text)
+
+    def _category(
+        self, message: str, transaction_type: TransactionType = TransactionType.EXPENSE
+    ):
+        data = (
+            self.exp_data
+            if transaction_type == TransactionType.EXPENSE
+            else self.inc_data
+        )
         cat_criteria = {cat: info.get("description", "") for cat, info in data.items()}
 
-        response = self.client.system_one(
+        response = self.ts_client.system_one(
             state=message,
             questions={
                 "category": Choice(
@@ -62,11 +81,17 @@ class MessageParser:
         )
         return response.answers["category"]
 
-    def _subcategory(self, message: str, transaction_type: TransactionType, category: str):
-        data = self.exp_data if transaction_type == TransactionType.EXPENSE else self.inc_data
+    def _subcategory(
+        self, message: str, transaction_type: TransactionType, category: str
+    ):
+        data = (
+            self.exp_data
+            if transaction_type == TransactionType.EXPENSE
+            else self.inc_data
+        )
         sub_criteria = data.get(category, {}).get("subcategories", {})
 
-        response = self.client.system_one(
+        response = self.ts_client.system_one(
             state=message,
             questions={
                 "subcategory": Choice(
@@ -79,13 +104,16 @@ class MessageParser:
 
     def parse(self, message: str) -> Transaction:
         answer, transaction_type = self._transaction_type(message)
+        amount = self._amount(message)
         category_answer = self._category(message, transaction_type)
-        subcategory_answer = self._subcategory(message, transaction_type, category_answer.choice)
+        subcategory_answer = self._subcategory(
+            message, transaction_type, category_answer.choice
+        )
 
         return Transaction(
             transaction_type=(answer, transaction_type),
             date=datetime.now(),
-            amount=0.0,
+            amount=amount,
             description="",
             category=category_answer,
             subcategory=subcategory_answer,

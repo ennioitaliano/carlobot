@@ -25,6 +25,8 @@ class Transaction:
             - *Confidence*: {self.transaction_type[0].confidence}
             - *Enum*: {self.transaction_type[1]}
 
+        *Amount:* {self.amount}
+
         *Category*
             - *Choice*: {self.category.choice}
             - *Confidence*: {self.category.confidence}
@@ -38,6 +40,7 @@ class Transaction:
     def __str__(self) -> str:
         return dedent(f"""
             *Type*: {self.transaction_type[1].name.capitalize()}
+            *Amount:* {self.amount}€
             *Category*: {self.category.choice.capitalize()}
             *Sub-category*: {self.subcategory.choice}
         """)
