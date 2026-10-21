@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from telegram import Update
@@ -38,7 +39,7 @@ async def parse_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         )
 
         writer = context.bot_data["sheet_writer"]
-        writer.write_values(parsed_transaction)
+        await asyncio.to_thread(writer.write_values, parsed_transaction)
 
         await status_message.edit_text(
             escaped_message + "\n✅ Written to Google Sheets",
