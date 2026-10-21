@@ -25,5 +25,9 @@ async def parse_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             repr(parsed_transaction) if is_debug else str(parsed_transaction)
         ).replace("[", r"\[")
         await update.message.reply_markdown(escaped_message)
+
+        writer = context.bot_data["sheet_writer"]
+        writer.write_values(parsed_transaction)
+
     except ValueError as e:
         await update.message.reply_markdown(f"*⚠️ Error*: {e}")

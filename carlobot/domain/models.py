@@ -17,6 +17,23 @@ class Transaction:
     category: Answer
     subcategory: Answer
 
+    def list_values(self) -> list[str]:
+        if self.transaction_type[1] == TransactionType.EXPENSE:
+            return [
+                self.date[1].strftime("%F"),
+                f"{self.amount}",
+                self.description.lower(),
+                self.category.choice,
+                self.subcategory.choice,
+            ]
+        else:
+            return [
+                self.date[1].strftime("%F"),
+                f"{self.amount}",
+                self.description.lower(),
+                self.subcategory.choice,
+            ]
+
     @override
     def __repr__(self) -> str:
         return dedent(f"""

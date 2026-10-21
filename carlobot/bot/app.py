@@ -16,6 +16,7 @@ from carlobot.bot.handlers import debug_mode, parse_message
 from carlobot.categories.builder import CategoriesBuilder
 from carlobot.domain import TransactionType
 from carlobot.services.parser import MessageParser
+from carlobot.sheets.writer import SheetWriter
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -33,6 +34,8 @@ async def _build_categories(app: Application) -> None:
 
 
 async def post_init(application: Application) -> None:
+
+    application.bot_data["sheet_writer"] = SheetWriter()
 
     exp_file = config.CATEGORIES_CACHE_DIR / "exp_cat.json"
     inc_file = config.CATEGORIES_CACHE_DIR / "inc_cat.json"
