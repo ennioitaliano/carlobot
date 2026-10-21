@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from datetime import date
 from textwrap import dedent
-from typing import override
 
 from typesafe_sdk import Answer
+from typing_extensions import override
 
 from carlobot.domain.types import TransactionType
 
