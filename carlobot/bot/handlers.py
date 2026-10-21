@@ -39,7 +39,7 @@ async def parse_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             if not update.message.voice
             else [audio_data, mime_type]
         )
-        parsed_transaction = parser.parse(*parse_args)
+        parsed_transaction = await parser.parse(*parse_args)
 
         escaped_message = (
             repr(parsed_transaction) if is_debug else str(parsed_transaction)

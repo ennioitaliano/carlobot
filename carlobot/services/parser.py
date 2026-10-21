@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import re
 import sys
@@ -6,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 from google import genai
 from pydantic import BaseModel, Field
-from typesafe_sdk import Choice, Noul, NoulCriteria, Score, TypeSafeClient
+from typesafe_sdk import AsyncTypeSafeClient, Choice, Noul, NoulCriteria, Score
 
 from carlobot import config
 from carlobot.categories.builder import CategoriesBuilder
@@ -17,7 +18,7 @@ class MessageParser:
     def __init__(
         self, exp_data: dict | None = None, inc_data: dict | None = None
     ) -> None:
-        self.ts_client = TypeSafeClient()
+        self.ts_client = AsyncTypeSafeClient()
         self.gemini_client = genai.Client()
 
         if exp_data is None or inc_data is None:
@@ -34,8 +35,8 @@ class MessageParser:
             else builder.get_categories(TransactionType.INCOME)
         )
 
-    def _transaction_type(self, message: str):
-        response = self.ts_client.system_one(
+    async def _transaction_type(self, message: str):
+        response = await self.ts_client.system_one(
             state=message,
             questions={
                 "type": Choice(
@@ -53,8 +54,8 @@ class MessageParser:
 
         return (answer, transaction_type)
 
-    def _date_confidence(self, message: str) -> float:
-        response = self.ts_client.system_one(
+    async def _date_confidence(self, message: str) -> float:
+        response = await self.ts_client.system_one(
             state=message,
             questions={
                 "type": Noul(
@@ -69,8 +70,8 @@ class MessageParser:
 
         return response.answers["type"].noul
 
-    def _extract_date(self, message: str, current_date: date) -> date:
-        interaction = self.gemini_client.interactions.create(
+    async def _extract_date(self, message: str, current_date: date) -> date:
+        interaction = await self.gemini_client.aio.interactions.create(
             model="gemini-3.1-flash-lite",
             system_instruction="Only output the requested date in YYYY-MM-DD, no formatting",
             input=f"""
@@ -81,15 +82,15 @@ class MessageParser:
 
         return datetime.fromisoformat(interaction.output_text.strip()).date()
 
-    def _date(self, message: str) -> tuple[float, date]:
-        confidence = self._date_confidence(message)
+    async def _date(self, message: str) -> tuple[float, date]:
+        confidence = await self._date_confidence(message)
         local_timezone = ZoneInfo("Europe/Rome")
         current_date = datetime.now(tz=local_timezone).date()
 
         if confidence < 0.5:
             return (confidence, current_date)
 
-        output_date = self._extract_date(message, current_date)
+        output_date = await self._extract_date(message, current_date)
 
         if (output_date.month, output_date.year) != (
             current_date.month,
@@ -102,7 +103,7 @@ class MessageParser:
             output_date,
         )
 
-    def _amount_description(
+    async def _amount_description(
         self, message: str, transaction_type: TransactionType
     ) -> tuple[float, str]:
         if re.search("[a-zA-Z]", message) is None:
@@ -119,7 +120,7 @@ class MessageParser:
         What is the amount of money involved and the object of the transaction?
         """
 
-        interaction = self.gemini_client.interactions.create(
+        interaction = await self.gemini_client.aio.interactions.create(
             model="gemini-3.1-flash-lite",
             input=prompt,
             response_format={
@@ -138,7 +139,7 @@ class MessageParser:
 
         return (transaction_props.amount, transaction_props.description)
 
-    def _category(
+    async def _category(
         self, message: str, transaction_type: TransactionType = TransactionType.EXPENSE
     ):
         data = (
@@ -148,7 +149,7 @@ class MessageParser:
         )
         cat_criteria = {cat: info.get("description", "") for cat, info in data.items()}
 
-        response = self.ts_client.system_one(
+        response = await self.ts_client.system_one(
             state=message,
             questions={
                 "category": Choice(
@@ -159,7 +160,7 @@ class MessageParser:
         )
         return response.answers["category"]
 
-    def _subcategory(
+    async def _subcategory(
         self, message: str, transaction_type: TransactionType, category: str
     ):
         data = (
@@ -169,7 +170,7 @@ class MessageParser:
         )
         sub_criteria = data.get(category, {}).get("subcategories", {})
 
-        response = self.ts_client.system_one(
+        response = await self.ts_client.system_one(
             state=message,
             questions={
                 "subcategory": Choice(
@@ -180,10 +181,10 @@ class MessageParser:
         )
         return response.answers["subcategory"]
 
-    def _get_transcription(self, voice_message: bytearray, mime_type: str) -> str:
+    async def _get_transcription(self, voice_message: bytearray, mime_type: str) -> str:
         audio_data = base64.b64encode(voice_message).decode("ascii")
 
-        interaction = self.gemini_client.interactions.create(
+        interaction = await self.gemini_client.aio.interactions.create(
             model="gemini-3.5-transcribe",
             input=[
                 {
@@ -196,20 +197,20 @@ class MessageParser:
 
         return interaction.output_text
 
-    def parse(
+    async def parse(
         self, message: str | bytearray, mime_type: str | None = None
     ) -> Transaction:
         if isinstance(message, bytearray):
             if mime_type is None:
                 raise ValueError("Problem with voice message")
 
-            message = self._get_transcription(message, mime_type)
+            message = await self._get_transcription(message, mime_type)
 
-        type_answer, transaction_type = self._transaction_type(message)
-        date_confidence, date = self._date(message)
-        amount, description = self._amount_description(message, transaction_type)
-        category_answer = self._category(message, transaction_type)
-        subcategory_answer = self._subcategory(
+        type_answer, transaction_type = await self._transaction_type(message)
+        date_confidence, date = await self._date(message)
+        amount, description = await self._amount_description(message, transaction_type)
+        category_answer = await self._category(message, transaction_type)
+        subcategory_answer = await self._subcategory(
             message, transaction_type, category_answer.choice
         )
 
@@ -223,11 +224,16 @@ class MessageParser:
         )
 
 
-if __name__ == "__main__":
+async def main() -> None:
     message_parser = MessageParser()
-    try:
-        transaction = message_parser.parse(sys.argv[1])
-        print(repr(transaction))
-        print(str(transaction))
-    except ValueError as e:
-        print(f"⚠️ Error: {e}")
+
+    async with message_parser.ts_client, message_parser.gemini_client.aio:
+        try:
+            transaction = await message_parser.parse(sys.argv[1])
+            print(repr(transaction))
+        except ValueError as e:
+            print(f"⚠️ Error: {e}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
