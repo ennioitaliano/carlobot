@@ -1,8 +1,10 @@
+import re
 import sys
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from google import genai
+from pydantic import BaseModel, Field
 from typesafe_sdk import Choice, Noul, NoulCriteria, Score, TypeSafeClient
 
 from carlobot import config
@@ -84,11 +86,14 @@ class MessageParser:
         current_date = datetime.now(tz=local_timezone).date()
 
         if confidence < 0.5:
-            return (answer.noul, current_date)
+            return (confidence, current_date)
 
         output_date = self._extract_date(message, current_date)
 
-        if output_date.month != current_date.month:
+        if (output_date.month, output_date.year) != (
+            current_date.month,
+            current_date.year,
+        ):
             raise ValueError("The bot can only log current-month transactions.")
 
         return (
@@ -96,27 +101,39 @@ class MessageParser:
             output_date,
         )
 
-    def _description(self, message: str) -> str:
-        interaction = self.gemini_client.interactions.create(
-            model="gemini-3.1-flash-lite",
-            system_instruction="Only output the requested description, in Italian, maximum 3 words, no articles/prepositions, no formatting",
-            input=f"""
-                    The following message contains informations about a transaction: '{message}'
-                    What is the object of the transaction?
-                """,
-        )
-        return interaction.output_text.lower()
+    def _amount_description(self, message: str) -> tuple[float, str]:
+        if re.search("[a-zA-Z]", message) is None:
+            raise ValueError("Missing description")
 
-    def _amount(self, message: str) -> float:
+        class TransactionProperties(BaseModel):
+            amount: float = Field(description="Amount of money of the transaction")
+            description: str = Field(
+                description="Description of the object of the transaction, in Italian, maximum 3 words, no articles/prepositions"
+            )
+
+        prompt = f"""
+        The following message contains informations about a transaction: '{message}'
+        What is the amount of money involved and the object of the transaction?
+        """
+
         interaction = self.gemini_client.interactions.create(
             model="gemini-3.1-flash-lite",
-            system_instruction="Only output the requested float amount, no formatting",
-            input=f"""
-                    The following message contains informations about a transaction: '{message}'
-                    What is the amount of money of the transaction?
-                """,
+            input=prompt,
+            response_format={
+                "type": "text",
+                "mime_type": "application/json",
+                "schema": TransactionProperties.model_json_schema(),
+            },
         )
-        return float(interaction.output_text)
+
+        transaction_props = TransactionProperties.model_validate_json(
+            interaction.output_text
+        )
+
+        if transaction_props.amount == 0.0:
+            raise ValueError("Missing amount")
+
+        return (transaction_props.amount, transaction_props.description)
 
     def _category(
         self, message: str, transaction_type: TransactionType = TransactionType.EXPENSE
@@ -162,9 +179,8 @@ class MessageParser:
 
     def parse(self, message: str) -> Transaction:
         type_answer, transaction_type = self._transaction_type(message)
-        date_conf, date = self._date(message)
-        amount = self._amount(message)
-        description = self._description(message)
+        date_confidence, date = self._date(message)
+        amount, description = self._amount_description(message)
         category_answer = self._category(message, transaction_type)
         subcategory_answer = self._subcategory(
             message, transaction_type, category_answer.choice
@@ -172,7 +188,7 @@ class MessageParser:
 
         return Transaction(
             transaction_type=(type_answer, transaction_type),
-            date=(date_conf, date),
+            date=(date_confidence, date),
             amount=amount,
             description=description,
             category=category_answer,
