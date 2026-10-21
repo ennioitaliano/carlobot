@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from google import genai
+from google.genai.client import Client
 
 from carlobot import config
 from carlobot.domain.types import TransactionType
@@ -10,8 +11,7 @@ from carlobot.sheets.reader import SheetReader
 
 
 class CategoriesBuilder:
-    def __init__(self) -> None:
-        self._gemini_client = genai.Client()
+    _gemini_client = None
 
     async def _generate_cat_descr(
         self, cat_name: str, subcats: list[str], transaction_type: TransactionType
@@ -65,20 +65,29 @@ class CategoriesBuilder:
 
     async def write_categories(self):
         config.CATEGORIES_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        for transaction_type in [TransactionType.EXPENSE, TransactionType.INCOME]:
-            json_path = (
-                config.CATEGORIES_CACHE_DIR
-                / f"{transaction_type.name.lower()[:3]}_cat.json"
-            )
-            reader = SheetReader()
-            categories_raw = await asyncio.to_thread(
-                reader.get_categories_sheet, transaction_type
-            )
-            enriched_categories = await self._enrich_categories(
-                categories_raw, transaction_type
-            )
-            with open(json_path, "w") as f:
-                json.dump(enriched_categories, f, indent=2)
+        json_paths, enriched_categories = [], []
+
+        self._gemini_client = genai.Client()
+
+        try:
+            for transaction_type in [TransactionType.EXPENSE, TransactionType.INCOME]:
+                json_paths.append(
+                    config.CATEGORIES_CACHE_DIR
+                    / f"{transaction_type.name.lower()[:3]}_cat.json"
+                )
+                reader = SheetReader()
+                categories_raw = await asyncio.to_thread(
+                    reader.get_categories_sheet, transaction_type
+                )
+                enriched_categories.append(
+                    await self._enrich_categories(categories_raw, transaction_type)
+                )
+
+            for path, en_cat in zip(json_paths, enriched_categories):
+                with open(path, "w") as f:
+                    json.dump(en_cat, f, indent=2)
+        finally:
+            await self._cleanup()
 
     def get_categories(self, transaction_type: TransactionType) -> dict:
         json_path = (
@@ -88,6 +97,9 @@ class CategoriesBuilder:
 
         with open(json_path, "rt") as categories_file:
             return json.load(categories_file)
+
+    async def _cleanup(self):
+        await self._gemini_client.aio.aclose()
 
 
 if __name__ == "__main__":

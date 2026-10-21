@@ -10,10 +10,39 @@ logger = logging.getLogger(__name__)
 
 
 async def debug_mode(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.message:
+        return
+
     is_debug = not context.user_data.get("debug", False)
     context.user_data["debug"] = is_debug
-    if update.message:
-        await update.message.reply_text(f"Debug mode {'on' if is_debug else 'off'}")
+    await update.message.reply_text(f"Debug mode {'on' if is_debug else 'off'}")
+
+
+async def refresh_categories(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if not update.message:
+        return
+
+    status_message = await update.message.reply_markdown("_Refreshing categories..._")
+    parser = context.bot_data["parser"]
+
+    try:
+        if parser is not None:
+            await parser.refresh_categories()
+            await status_message.edit_text("✅ Categories refreshed")
+        else:
+            await status_message.edit_text(
+                f"*⚠️ Error*: Parser is None",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+    except Exception as e:
+        logger.exception("Failed to refresh categories")
+        error_text = escape_markdown(str(e), version=1)
+        await status_message.edit_text(
+            f"*⚠️ Error*: {error_text}",
+            parse_mode=ParseMode.MARKDOWN,
+        )
 
 
 async def parse_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

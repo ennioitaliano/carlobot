@@ -35,6 +35,16 @@ class MessageParser:
             else builder.get_categories(TransactionType.INCOME)
         )
 
+    async def refresh_categories(self):
+        builder = CategoriesBuilder()
+        await builder.write_categories()
+
+        refreshed_exp_data = builder.get_categories(TransactionType.EXPENSE)
+        refreshed_inc_data = builder.get_categories(TransactionType.INCOME)
+
+        self.exp_data = refreshed_exp_data
+        self.inc_data = refreshed_inc_data
+
     async def _transaction_type(self, message: str):
         response = await self.ts_client.system_one(
             state=message,
