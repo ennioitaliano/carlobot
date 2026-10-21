@@ -33,13 +33,9 @@ class SheetWriter:
         sheet = service.spreadsheets()
         target_range = self._get_range(transaction.transaction_type[1])
 
-        result = (
-            sheet.values()
-            .append(
-                spreadsheetId=config.BUDGETING_2026_SPREADSHEET_ID,
-                range=target_range,
-                valueInputOption="USER_ENTERED",
-                body={"values": [transaction.list_values()]}
-            )
-            .execute()
-        )
+        sheet.values().append(
+            spreadsheetId=config.BUDGETING_2026_SPREADSHEET_ID,
+            range=target_range,
+            valueInputOption="USER_ENTERED",
+            body={"values": [transaction.list_values()]},
+        ).execute()
