@@ -76,7 +76,7 @@ def create_application() -> Application:
 
     application.add_handler(CommandHandler("debug", debug_mode))
     application.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, parse_message)
+        MessageHandler((filters.TEXT | filters.VOICE) & ~filters.COMMAND, parse_message)
     )
 
     return application

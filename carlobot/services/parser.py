@@ -1,3 +1,4 @@
+import base64
 import re
 import sys
 from datetime import date, datetime
@@ -179,7 +180,31 @@ class MessageParser:
         )
         return response.answers["subcategory"]
 
-    def parse(self, message: str) -> Transaction:
+    def _get_transcription(self, voice_message: bytearray, mime_type: str) -> str:
+        audio_data = base64.b64encode(voice_message).decode("ascii")
+
+        interaction = self.gemini_client.interactions.create(
+            model="gemini-3.5-transcribe",
+            input=[
+                {
+                    "type": "audio",
+                    "data": audio_data,
+                    "mime_type": mime_type,
+                }
+            ],
+        )
+
+        return interaction.output_text
+
+    def parse(
+        self, message: str | bytearray, mime_type: str | None = None
+    ) -> Transaction:
+        if isinstance(message, bytearray):
+            if mime_type is None:
+                raise ValueError("Problem with voice message")
+
+            message = self._get_transcription(message, mime_type)
+
         type_answer, transaction_type = self._transaction_type(message)
         date_confidence, date = self._date(message)
         amount, description = self._amount_description(message, transaction_type)

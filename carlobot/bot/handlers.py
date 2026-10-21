@@ -17,7 +17,7 @@ async def debug_mode(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
 
 async def parse_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not update.message or not update.message.text:
+    if not update.message or (not update.message.text and not update.message.voice):
         return
 
     parser = context.bot_data["parser"]
@@ -29,7 +29,18 @@ async def parse_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     try:
         status_message = await update.message.reply_markdown("_Parsing message..._")
 
-        parsed_transaction = parser.parse(update.message.text)
+        if update.message.voice:
+            voice_file = await update.message.voice.get_file()
+            audio_data = await voice_file.download_as_bytearray()
+            mime_type = update.message.voice.mime_type
+
+        parse_args = (
+            [update.message.text]
+            if not update.message.voice
+            else [audio_data, mime_type]
+        )
+        parsed_transaction = parser.parse(*parse_args)
+
         escaped_message = (
             repr(parsed_transaction) if is_debug else str(parsed_transaction)
         ).replace("[", r"\[")
