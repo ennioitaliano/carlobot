@@ -12,7 +12,7 @@ from telegram.ext import (
 )
 
 from carlobot import config
-from carlobot.bot.handlers import debug_mode, parse_message
+from carlobot.bot.handlers import debug_mode, parse_message, refresh_categories
 from carlobot.categories.builder import CategoriesBuilder
 from carlobot.domain import TransactionType
 from carlobot.services.parser import MessageParser
@@ -51,9 +51,16 @@ async def post_init(application: Application) -> None:
     await application.bot.set_my_commands(
         [
             BotCommand("debug", "Toggle debug mode"),
+            BotCommand("refresh_categories", "Refresh categories from Google Sheets"),
         ]
     )
     await application.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+
+
+async def post_shutdown(application: Application) -> None:
+    parser = application.bot_data["parser"]
+    if parser is not None:
+        await parser.cleanup()
 
 
 def create_application() -> Application:
@@ -69,14 +76,16 @@ def create_application() -> Application:
         .token(config.TG_BOT_TOKEN)
         .persistence(persistence)
         .post_init(post_init)
+        .post_shutdown(post_shutdown)
         .build()
     )
 
     application.bot_data["parser"] = None
 
     application.add_handler(CommandHandler("debug", debug_mode))
+    application.add_handler(CommandHandler("refresh_categories", refresh_categories))
     application.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, parse_message)
+        MessageHandler((filters.TEXT | filters.VOICE) & ~filters.COMMAND, parse_message)
     )
 
     return application

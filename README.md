@@ -5,7 +5,7 @@ Insert expense/income in Google Sheets by sending natural-language, audio or tex
 
 ## Current Features
 
-When I send a natural-language, text-only message to Carlo, and he replies with:
+When I send a natural-language, text or voice messages to Carlo, he replies with:
 
 - **Transaction type classification**, using [jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) to tell if the specified transaction is an expense or income one.
 - **Date detection**, using jev to detect if a date/timing indication is present in the message and Gemini to extract it.
