@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 from google import genai
 from pydantic import BaseModel, Field
-from typesafe_sdk import AsyncTypeSafeClient, Choice, Noul, NoulCriteria, Score
+from typesafe_sdk import Answer, AsyncTypeSafeClient, Choice, Noul, NoulCriteria, Score
 
 from carlobot import config
 from carlobot.categories.builder import CategoriesBuilder
@@ -139,9 +139,7 @@ class MessageParser:
 
         return (transaction_props.amount, transaction_props.description)
 
-    async def _category(
-        self, message: str, transaction_type: TransactionType = TransactionType.EXPENSE
-    ):
+    async def _category(self, message: str, transaction_type: TransactionType):
         data = (
             self.exp_data
             if transaction_type == TransactionType.EXPENSE
@@ -181,6 +179,14 @@ class MessageParser:
         )
         return response.answers["subcategory"]
 
+    async def _category_sub(
+        self, message: str, transaction_type: TransactionType
+    ) -> tuple[Answer, Answer]:
+        cat = await self._category(message, transaction_type)
+        sub = await self._subcategory(message, transaction_type, cat.choice)
+
+        return (cat, sub)
+
     async def _get_transcription(self, voice_message: bytearray, mime_type: str) -> str:
         audio_data = base64.b64encode(voice_message).decode("ascii")
 
@@ -208,10 +214,12 @@ class MessageParser:
 
         type_answer, transaction_type = await self._transaction_type(message)
         date_confidence, date = await self._date(message)
-        amount, description = await self._amount_description(message, transaction_type)
-        category_answer = await self._category(message, transaction_type)
-        subcategory_answer = await self._subcategory(
-            message, transaction_type, category_answer.choice
+
+        amount_descr_task = self._amount_description(message, transaction_type)
+        cat_sub_task = self._category_sub(message, transaction_type)
+
+        (amount, description), (cat_answer, sub_answer) = await asyncio.gather(
+            amount_descr_task, cat_sub_task
         )
 
         return Transaction(
@@ -219,9 +227,15 @@ class MessageParser:
             date=(date_confidence, date),
             amount=amount,
             description=description,
-            category=category_answer,
-            subcategory=subcategory_answer,
+            category=cat_answer,
+            subcategory=sub_answer,
         )
+
+    async def cleanup(self):
+        try:
+            await self.ts_client.aclose()
+        finally:
+            await self.gemini_client.aio.aclose()
 
 
 async def main() -> None:

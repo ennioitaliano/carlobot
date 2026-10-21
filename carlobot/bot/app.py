@@ -56,6 +56,12 @@ async def post_init(application: Application) -> None:
     await application.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
 
 
+async def post_shutdown(application: Application) -> None:
+    parser = application.bot_data["parser"]
+    if parser is not None:
+        await parser.cleanup()
+
+
 def create_application() -> Application:
     persistence = PicklePersistence(
         filepath=str(config.PERSISTENCE_PATH),
@@ -69,6 +75,7 @@ def create_application() -> Application:
         .token(config.TG_BOT_TOKEN)
         .persistence(persistence)
         .post_init(post_init)
+        .post_shutdown(post_shutdown)
         .build()
     )
 
