@@ -101,18 +101,20 @@ class MessageParser:
             output_date,
         )
 
-    def _amount_description(self, message: str) -> tuple[float, str]:
+    def _amount_description(
+        self, message: str, transaction_type: TransactionType
+    ) -> tuple[float, str]:
         if re.search("[a-zA-Z]", message) is None:
             raise ValueError("Missing description")
 
         class TransactionProperties(BaseModel):
             amount: float = Field(description="Amount of money of the transaction")
             description: str = Field(
-                description="Description of the object of the transaction, in Italian, maximum 3 words, no articles/prepositions"
+                description=f"Description of the object of the {transaction_type.name.lower()} transaction, in Italian, maximum 3 words, no articles/prepositions, no reference to the transaction type (e.g., 'purchase', etc.)"
             )
 
         prompt = f"""
-        The following message contains informations about a transaction: '{message}'
+        The following message contains informations about an {transaction_type.name.lower()} transaction: '{message}'
         What is the amount of money involved and the object of the transaction?
         """
 
@@ -180,7 +182,7 @@ class MessageParser:
     def parse(self, message: str) -> Transaction:
         type_answer, transaction_type = self._transaction_type(message)
         date_confidence, date = self._date(message)
-        amount, description = self._amount_description(message)
+        amount, description = self._amount_description(message, transaction_type)
         category_answer = self._category(message, transaction_type)
         subcategory_answer = self._subcategory(
             message, transaction_type, category_answer.choice

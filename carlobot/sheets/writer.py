@@ -18,12 +18,16 @@ class SheetWriter:
     def _get_range(self, transaction_type: TransactionType) -> str:
         local_timezone = ZoneInfo("Europe/Rome")
         current_date = datetime.now(tz=local_timezone).date()
-        current_month = current_date.strftime("%b")
+        months = (
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+        )
+        current_month = months[current_date.month - 1]
 
         range = (
-            f"{current_month}!B3:F3"
+            current_month + config.EXPENSE_INSERT_RANGE
             if transaction_type == TransactionType.EXPENSE
-            else f"{current_month}!H3:K3"
+            else current_month + config.INCOME_INSERT_RANGE
         )
 
         return range
