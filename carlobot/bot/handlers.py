@@ -55,6 +55,7 @@ async def parse_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if not parser:
         return
 
+    status_message = None
     try:
         status_message = await update.message.reply_markdown("_Parsing message..._")
 
@@ -89,4 +90,10 @@ async def parse_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     except Exception as e:
         logger.exception("Failed to process transaction")
         error_text = escape_markdown(str(e), version=1)
-        await update.message.reply_markdown(f"*⚠️ Error*: {error_text}")
+        if status_message is not None:
+            await status_message.edit_text(
+                f"*⚠️ Error*: {error_text}",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+        else:
+            await update.message.reply_markdown(f"*⚠️ Error*: {error_text}")
