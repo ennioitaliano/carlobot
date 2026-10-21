@@ -17,11 +17,11 @@ class Transaction:
     category: Answer
     subcategory: Answer
 
-    def list_values(self) -> list[str]:
+    def list_values(self) -> list[str | float]:
         if self.transaction_type[1] == TransactionType.EXPENSE:
             return [
                 self.date[1].strftime("%F"),
-                f"{self.amount}",
+                self.amount,
                 self.description.lower(),
                 self.category.choice,
                 self.subcategory.choice,
@@ -29,7 +29,7 @@ class Transaction:
         else:
             return [
                 self.date[1].strftime("%F"),
-                f"{self.amount}",
+                self.amount,
                 self.description.lower(),
                 self.subcategory.choice,
             ]
