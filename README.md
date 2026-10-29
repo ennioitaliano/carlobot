@@ -34,7 +34,7 @@ Category criteria are generated on the first run and cached locally. Later runs 
 
 ## Setup
 
-You need Python 3.12 or newer with `pip` and `venv`, a Google account, a Telegram bot token, and API keys for Gemini and TypeSafe. API access, quotas, and costs depend on your provider accounts.
+You need Python 3.10 or newer with `pip` and `venv`, a Google account, a Telegram bot token, and API keys for Gemini and TypeSafe. API access, quotas, and costs depend on your provider accounts.
 
 ### Step 1. Get the code
 
@@ -43,6 +43,7 @@ git clone https://github.com/ennioitaliano/carlobot.git
 cd carlobot
 python3 -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install --require-hashes -r requirements.txt
 ```
 
