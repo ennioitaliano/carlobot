@@ -77,7 +77,7 @@ The service account JSON key is required.
 
 ### Step 4. Get your bot token and API keys
 
-- Create a Telegram bot through [BotFather](https://t.me/BotFather) and copy its token. You can restrict its usage in BotFather so that only you can interact with it. 
+- Create a Telegram bot through [BotFather](https://t.me/BotFather) and copy its token. **You can restrict its usage in BotFather so that only you can interact with it.** 
 - Obtain a Gemini API key from [Google AI Studio](https://aistudio.google.com/).
 - Obtain a TypeSafe API key from [TypeSafe](https://typesafe.ai/).
 
