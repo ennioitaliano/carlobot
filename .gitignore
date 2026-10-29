@@ -95,12 +95,6 @@ ipython_config.py
 #   install all needed dependencies.
 # Pipfile.lock
 
-# uv
-#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-# uv.lock
-
 # poetry
 #   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
 #   This is especially recommended for binary packages to ensure reproducibility, and is more
@@ -150,7 +144,7 @@ activemq-data/
 *.sage.py
 
 # Environments
-.env
+.env.local
 .envrc
 .venv
 env/
@@ -224,3 +218,6 @@ persistence
 *.json
 data/
 .DS_Store
+
+# Local deployment script
+/deploy.sh

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "carlobot"
+version = "0.1.0"
+description = "Record income and expenses in Google Sheets through Telegram messages."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "google-api-python-client>=2.201.0,<3",
+    "google-auth>=2.61.0,<3",
+    "google-genai>=2.29.0,<3",
+    "pydantic>=2.13.5,<3",
+    "python-dotenv>=1.2.4,<2",
+    "python-telegram-bot>=22.8,<23",
+    "typesafe-sdk>=0.7.2,<0.8",
+    "typing-extensions>=4.16.0,<5",
+    "tzdata>=2026.6",
+]
+
+[tool.setuptools.packages.find]
+include = ["carlobot*"]

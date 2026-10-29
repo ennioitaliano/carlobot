@@ -24,7 +24,7 @@ class SheetReader:
         result = (
             sheet.values()
             .get(
-                spreadsheetId=config.BUDGETING_2026_SPREADSHEET_ID,
+                spreadsheetId=config.GOOGLE_SHEET_ID,
                 range=target_range,
                 majorDimension="COLUMNS",
             )

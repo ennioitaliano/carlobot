@@ -38,7 +38,7 @@ class SheetWriter:
         target_range = self._get_range(transaction.transaction_type[1])
 
         sheet.values().append(
-            spreadsheetId=config.BUDGETING_2026_SPREADSHEET_ID,
+            spreadsheetId=config.GOOGLE_SHEET_ID,
             range=target_range,
             valueInputOption="USER_ENTERED",
             body={"values": [transaction.list_values()]},
